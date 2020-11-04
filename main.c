@@ -10,7 +10,8 @@
 #include <byteswap.h>
 
 
-#define MAX_TRANSFER 60800
+//#define MAX_TRANSFER 60800
+#define MAX_TRANSFER 60*1024
 
 typedef struct it8951_inquiry {
 	unsigned char dontcare[8];
@@ -88,7 +89,7 @@ memory_write(int fd, unsigned int addr, unsigned int length, char *data)
 	io_hdr.dxfer_len = length;
 	io_hdr.dxferp = data;
 	io_hdr.cmdp = write_cmd;
-	io_hdr.timeout = 10000;
+	io_hdr.timeout = 100;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO memory write failed");
@@ -105,6 +106,8 @@ load_image_area(int fd, int addr, int x, int y, int w, int h,
 		0xfe, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0xa2
 	};
+	printf("  Loading image to 0x%08x... ", addr);
+	fflush(stdout);
 
 	IT8951_area area;
 	memset(&area, 0, sizeof(IT8951_area));
@@ -129,10 +132,12 @@ load_image_area(int fd, int addr, int x, int y, int w, int h,
 	io_hdr.dxfer_len = length + sizeof(IT8951_area);
 	io_hdr.dxferp = data_buffer;
 	io_hdr.cmdp = load_image_cmd;
-	io_hdr.timeout = 5000;
+	io_hdr.timeout = 50;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO image load failed");
+	} else {
+		printf("OK\n");
 	}
 	return 0;
 }
@@ -167,7 +172,7 @@ display_area(int fd, int addr, int x, int y, int w, int h, int mode)
 	io_hdr.dxfer_len = sizeof(IT8951_display_area);
 	io_hdr.dxferp = data_buffer;
 	io_hdr.cmdp = display_image_cmd;
-	io_hdr.timeout = 5000;
+	io_hdr.timeout = 50;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO display failed");
@@ -196,7 +201,7 @@ pmic_set(int fd, int power, int vcom)
 	io_hdr.dxfer_direction = SG_DXFER_TO_DEV;
 	io_hdr.dxfer_len = 0;
 	io_hdr.cmdp = load_image_cmd;
-	io_hdr.timeout = 5000;
+	io_hdr.timeout = 50;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO power set failed");
@@ -224,11 +229,12 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 
 	unsigned char inquiry_cmd[6] = {0x12, 0, 0, 0, 0, 0};
 	unsigned char inquiry_result[96];
-	unsigned char deviceinfo_cmd[12] = {
+	unsigned char deviceinfo_cmd[16] = {
 		0xfe, 0x00, // SCSI Customer command
 		0x38, 0x39, 0x35, 0x31, // Chip signature
 		0x80, 0x00, // Get System Info
-		0x01, 0x00, 0x02, 0x00 // Version
+		0x01, 0x00, 0x02, 0x00, // Version
+		0x00, 0x00, 0x00, 0x00	// Rest
 	};
 	unsigned char deviceinfo_result[112];
 
@@ -242,7 +248,7 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 	io_hdr.dxfer_len = 96;
 	io_hdr.dxferp = inquiry_result;
 	io_hdr.cmdp = inquiry_cmd;
-	io_hdr.timeout = 1000;
+	io_hdr.timeout = 100;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO INQUIRY failed");
@@ -274,7 +280,7 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 	io_hdr.dxfer_len = 112;
 	io_hdr.dxferp = deviceinfo_result;
 	io_hdr.cmdp = deviceinfo_cmd;
-	io_hdr.timeout = 10000;
+	io_hdr.timeout = 100;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO device info failed");
@@ -291,11 +297,14 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 	}
 
 	int addr = deviceinfo->image_buffer_addr;
+	if (debug == 1) {
+		printf("Image buffer addr 0x%08x (0x%08x)\n", addr, __bswap_32(addr));
+	}
 
 	int size = w * h;
 	unsigned char *image = (unsigned char *) malloc(size);
 	if (clear == 1) {
-		memset(image, 0xff, size);
+		memset(image, 0x00, size);
 	} else {
 		size_t total_left = size;
 		unsigned char *buffer_pointer = image;
@@ -321,9 +330,12 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 			lines = h - (offset / w);
 		}
 		if (debug == 1) {
-			printf("Sending %dx%d chunk to %d,%d\n", w, lines, x, y + (offset / w));
+			printf("Sending %dx%d chunk to %d,%d (offset %d)\n", w, lines, x, y + (offset / w), offset);
 		}
-		load_image_area(fd, addr, x, y + (offset / w), w, lines, &image[offset]);
+//		load_image_area(fd, addr+__bswap_32(offset), x, y + (offset / w), w, lines, &image[offset]);
+		unsigned char aaa[60*1024] = { 0xff, 0xff, 0xff };
+		memory_write(fd, addr+offset, 60*1024, aaa);
+
 		offset += lines * w;
 	}
 	if (debug == 1) {
