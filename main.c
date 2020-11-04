@@ -10,7 +10,6 @@
 #include <byteswap.h>
 
 
-//#define MAX_TRANSFER 60800
 #define MAX_TRANSFER 60*1024
 
 typedef struct it8951_inquiry {
@@ -132,7 +131,7 @@ load_image_area(int fd, int addr, int x, int y, int w, int h,
 	io_hdr.dxfer_len = length + sizeof(IT8951_area);
 	io_hdr.dxferp = data_buffer;
 	io_hdr.cmdp = load_image_cmd;
-	io_hdr.timeout = 50;
+	io_hdr.timeout = 500;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO image load failed");
@@ -233,8 +232,7 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 		0xfe, 0x00, // SCSI Customer command
 		0x38, 0x39, 0x35, 0x31, // Chip signature
 		0x80, 0x00, // Get System Info
-		0x01, 0x00, 0x02, 0x00, // Version
-		0x00, 0x00, 0x00, 0x00	// Rest
+		0x01, 0x00, 0x02, 0x00 // Version
 	};
 	unsigned char deviceinfo_result[112];
 
@@ -280,7 +278,7 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 	io_hdr.dxfer_len = 112;
 	io_hdr.dxferp = deviceinfo_result;
 	io_hdr.cmdp = deviceinfo_cmd;
-	io_hdr.timeout = 100;
+	io_hdr.timeout = 10000;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO device info failed");
@@ -297,13 +295,21 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 	}
 
 	int addr = deviceinfo->image_buffer_addr;
+
 	if (debug == 1) {
+		printf("Table version: 0x%08x\n", __bswap_32(deviceinfo->uiVersion));
 		printf("Image buffer addr 0x%08x (0x%08x)\n", addr, __bswap_32(addr));
+		printf("Update buffer addr 0x%08x\n", __bswap_32(deviceinfo->update_buffer_addr));
+		printf("Temperature segment: %d\n", __bswap_32(deviceinfo->temperature_segment));
+		printf("UI mode: %d\n", __bswap_32(deviceinfo->ui_mode));
+		printf("Buffer count: 0x%08x\n", __bswap_32(deviceinfo->buffer_count));
 	}
+
 
 	int size = w * h;
 	unsigned char *image = (unsigned char *) malloc(size);
 	if (clear == 1) {
+		fprintf("Filling buffer by dummy data (length %d)\n", size);
 		memset(image, 0x00, size);
 	} else {
 		size_t total_left = size;
@@ -325,6 +331,7 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 
 	int offset = 0;
 	int lines = MAX_TRANSFER / w;
+	int page = 0;
 	while (offset < size) {
 		if ((offset / w) + lines > h) {
 			lines = h - (offset / w);
@@ -332,15 +339,15 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 		if (debug == 1) {
 			printf("Sending %dx%d chunk to %d,%d (offset %d)\n", w, lines, x, y + (offset / w), offset);
 		}
-//		load_image_area(fd, addr+__bswap_32(offset), x, y + (offset / w), w, lines, &image[offset]);
-		unsigned char aaa[60*1024] = { 0xff, 0xff, 0xff };
-		memory_write(fd, addr+offset, 60*1024, aaa);
+
+		memory_write(fd, addr+offset, 60*1024, &image[offset]);
 
 		offset += lines * w;
 	}
 	if (debug == 1) {
 		printf("Starting refresh\n");
 	}
+
 	display_area(fd, addr, x, y, w, h, mode);
 }
 
