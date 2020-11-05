@@ -9,7 +9,6 @@
 #include <scsi/sg.h>
 #include <byteswap.h>
 
-
 #define MAX_TRANSFER 60*1024
 
 typedef struct it8951_inquiry {
@@ -35,14 +34,6 @@ typedef struct it8951_deviceinfo {
 	unsigned int reserved[9];
 	void *command_table;
 } IT8951_deviceinfo;
-
-typedef struct it8951_area {
-	int address;
-	int x;
-	int y;
-	int w;
-	int h;
-} IT8951_area;
 
 typedef struct it8951_display_area {
 	u_int32_t address;
