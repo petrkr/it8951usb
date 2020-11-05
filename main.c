@@ -251,7 +251,7 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 		printf("Found a %dx%d epaper display\n", width, height);
 	}
 
-	int addr = deviceinfo->image_buffer_addr;
+	int addr = __bswap_32(deviceinfo->image_buffer_addr);
 
 	if (debug == 1) {
 		printf("Table version: 0x%08x\n", __bswap_32(deviceinfo->uiVersion));
@@ -286,9 +286,10 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 		}
 	}
 
-	int offset = 0;
-	int lines = MAX_TRANSFER / w;
-	int page = 0;
+	unsigned int offset = 0;
+	unsigned int startoffset = x + (width * y);
+	unsigned int lines = MAX_TRANSFER / w;
+	printf("Start offset: %d\n", startoffset);
 	while (offset < size) {
 		if ((offset / w) + lines > h) {
 			lines = h - (offset / w);
@@ -297,14 +298,13 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 		if (debug == 1) {
 			printf("Sending %dx%d chunk to %d,%d (offset %d - lines %d)\n", w, lines, x, y + (offset / w), offset, lines);
 		}
-		memory_write(fd, addr+offset, lines*w, &image[offset]);
+		memory_write(fd, addr+offset+startoffset, lines*w, &image[offset]);
 
 		offset += lines * w;
 	}
 	if (debug == 1) {
 		printf("Starting refresh\n");
 	}
-
 	display_area(fd, addr, x, y, w, h, mode);
 }
 
