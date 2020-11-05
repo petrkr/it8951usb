@@ -96,49 +96,6 @@ int memory_write(int fd, unsigned int addr, unsigned int length, char *data)
 	return 0;
 }
 
-int
-load_image_area(int fd, int addr, int x, int y, int w, int h,
-	unsigned char *data)
-{
-	unsigned char load_image_cmd[16] = {
-		0xfe, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0xa2
-	};
-	printf("  Loading image to 0x%08x... ", addr);
-	fflush(stdout);
-
-	IT8951_area area;
-	memset(&area, 0, sizeof(IT8951_area));
-	area.address = addr;
-	area.x = __bswap_32(x);
-	area.y = __bswap_32(y);
-	area.w = __bswap_32(w);
-	area.h = __bswap_32(h);
-
-	int length = w * h;
-
-	unsigned char *data_buffer = (unsigned char *) malloc(length + sizeof(IT8951_area));
-	memcpy(data_buffer, &area, sizeof(IT8951_area));
-	memcpy(&data_buffer[sizeof(IT8951_area)], data, length);
-
-	sg_io_hdr_t io_hdr;
-
-	memset(&io_hdr, 0, sizeof(sg_io_hdr_t));
-	io_hdr.interface_id = 'S';
-	io_hdr.cmd_len = 16;
-	io_hdr.dxfer_direction = SG_DXFER_TO_DEV;
-	io_hdr.dxfer_len = length + sizeof(IT8951_area);
-	io_hdr.dxferp = data_buffer;
-	io_hdr.cmdp = load_image_cmd;
-	io_hdr.timeout = 500;
-
-	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
-		perror("SG_IO image load failed");
-	} else {
-		printf("OK\n");
-	}
-	return 0;
-}
 
 int
 display_area(int fd, int addr, int x, int y, int w, int h, int mode)
@@ -148,6 +105,7 @@ display_area(int fd, int addr, int x, int y, int w, int h, int mode)
 		0x94
 	};
 
+	printf("display area (0x%08x)\n", __bswap_32(addr));
 	IT8951_display_area area;
 	memset(&area, 0, sizeof(IT8951_display_area));
 	area.address = addr;
