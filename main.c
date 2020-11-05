@@ -57,15 +57,14 @@ typedef struct it8951_display_area {
 int debug = 0;
 int clear = 0;
 
-int
-memory_write(int fd, unsigned int addr, unsigned int length, char *data)
+int memory_write(int fd, unsigned int addr, unsigned int length, char *data)
 {
 	unsigned char write_cmd[12] = {
 		0xfe, 0x00,
 		(addr >> 24) & 0xff,
 		(addr >> 16) & 0xff,
 		(addr >> 8) & 0xff,
-		addr && 0xff,
+		addr & 0xff,
 		0x82,
 		(length >> 8) & 0xff,
 		length & 0xff,
@@ -88,7 +87,7 @@ memory_write(int fd, unsigned int addr, unsigned int length, char *data)
 	io_hdr.dxfer_len = length;
 	io_hdr.dxferp = data;
 	io_hdr.cmdp = write_cmd;
-	io_hdr.timeout = 100;
+	io_hdr.timeout = 10000;
 
 	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
 		perror("SG_IO memory write failed");
