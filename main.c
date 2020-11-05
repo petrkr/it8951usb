@@ -45,13 +45,13 @@ typedef struct it8951_area {
 } IT8951_area;
 
 typedef struct it8951_display_area {
-	int address;
-	int wavemode;
-	int x;
-	int y;
-	int w;
-	int h;
-	int wait_ready;
+	u_int32_t address;
+	u_int32_t wavemode;
+	u_int32_t x;
+	u_int32_t y;
+	u_int32_t w;
+	u_int32_t h;
+	u_int32_t wait_ready;
 } IT8951_display_area;
 
 int debug = 0;
@@ -98,23 +98,25 @@ int memory_write(int fd, unsigned int addr, unsigned int length, char *data)
 
 
 int
-display_area(int fd, int addr, int x, int y, int w, int h, int mode)
+display_area(int fd, u_int32_t addr, u_int32_t x, u_int32_t y, u_int32_t w, u_int32_t h, u_int32_t mode)
 {
 	unsigned char display_image_cmd[16] = {
 		0xfe, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x94
 	};
 
-	printf("display area (0x%08x)\n", __bswap_32(addr));
+	printf("display area (0x%08x)\n", addr);
 	IT8951_display_area area;
 	memset(&area, 0, sizeof(IT8951_display_area));
 	area.address = addr;
-	area.x = __bswap_32(x);
-	area.y = __bswap_32(y);
-	area.w = __bswap_32(w);
-	area.h = __bswap_32(h);
-	area.wait_ready = __bswap_32(1);
-	area.wavemode = __bswap_32(mode);
+	area.x = x;
+	area.y = y;
+	area.w = w;
+	area.h = h;
+	area.wait_ready = 1;
+	area.wavemode = mode;
+
+	printf("Updating\n  Area X: 0x%08x\n  Area Y: 0x%08x\n  Area W: 0x%08x\n, Area H: 0x%08x\n", area.x, area.y, area.w, area.h);
 
 	unsigned char *data_buffer = (unsigned char *) malloc(sizeof(IT8951_display_area));
 	memcpy(data_buffer, &area, sizeof(IT8951_display_area));
