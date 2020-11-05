@@ -308,8 +308,8 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 	int size = w * h;
 	unsigned char *image = (unsigned char *) malloc(size);
 	if (clear == 1) {
-		fprintf("Filling buffer by dummy data (length %d)\n", size);
-		memset(image, 0x00, size);
+		printf("Filling buffer by dummy data (length %d)\n", size);
+		memset(image, 0x40, size);
 	} else {
 		size_t total_left = size;
 		unsigned char *buffer_pointer = image;
@@ -334,12 +334,12 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 	while (offset < size) {
 		if ((offset / w) + lines > h) {
 			lines = h - (offset / w);
+			printf("Apply some h-offset)\n");
 		}
 		if (debug == 1) {
-			printf("Sending %dx%d chunk to %d,%d (offset %d)\n", w, lines, x, y + (offset / w), offset);
+			printf("Sending %dx%d chunk to %d,%d (offset %d - lines %d)\n", w, lines, x, y + (offset / w), offset, lines);
 		}
-
-		memory_write(fd, addr+offset, 60*1024, &image[offset]);
+		memory_write(fd, addr+offset, lines*w, &image[offset]);
 
 		offset += lines * w;
 	}
