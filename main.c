@@ -64,12 +64,13 @@ int memory_write(int fd, unsigned int addr, unsigned int length, char *data)
 
 	sg_io_hdr_t io_hdr;
 
-	int i;
-	for (i = 0; i < 12; i += 4) {
-		printf("%02X %02X %02X %02X\n", write_cmd[i], write_cmd[i + 1],
-			write_cmd[i + 2], write_cmd[i + 3]);
+	if (debug == 1) {
+		for (u_int8_t i = 0; i < 12; i += 4) {
+			printf("%02X %02X %02X %02X\n", write_cmd[i], write_cmd[i + 1],
+				write_cmd[i + 2], write_cmd[i + 3]);
+		}
+		printf("\n");
 	}
-	printf("\n");
 
 	memset(&io_hdr, 0, sizeof(sg_io_hdr_t));
 	io_hdr.interface_id = 'S';
