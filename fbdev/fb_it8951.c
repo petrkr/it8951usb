@@ -10,11 +10,19 @@
 // DEV includes
 #include <linux/fs.h>
 
+// Chardev includes
+#include <linux/cdev.h>
+
+
 // SCSI includes
 #include <scsi/scsi.h>
+#include <scsi/scsi_driver.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_host.h>
 #include <scsi/sg.h>
 
-//#include "byteswap.h"
+
+#define SG_MAX_DEVS 32768
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Petr Kracik <petrkr@petrkr.net>");
@@ -264,6 +272,8 @@ static void update_region(int x, int y, int w, int h, int mode)
   display_area(fd, addr, x, y, w, h, mode);
 }/*
 
+/* File ops */
+
 /* Prototypes for device functions */
 static int device_open(struct inode *, struct file *);
 static int device_release(struct inode *, struct file *);
@@ -281,6 +291,31 @@ static struct file_operations file_ops = {
     .write = device_write,
     .open = device_open,
     .release = device_release};
+
+
+/* SCSI Generic */
+static int sg_add_device(struct device *, struct class_interface *);
+static void sg_remove_device(struct device *, struct class_interface *);
+
+static struct class_interface sg_interface = {
+    .add_dev = sg_add_device,
+    .remove_dev = sg_remove_device,
+};
+
+static int
+sg_add_device(struct device *cl_dev, struct class_interface *cl_intf)
+{
+ printk("Calling add device");
+ return 0;
+}
+
+
+static void
+sg_remove_device(struct device *cl_dev, struct class_interface *cl_intf)
+{
+  printk("Calling remove device");
+  return 0;
+}
 
 /* When a process reads from our device, this gets called. */
 static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *offset)
@@ -351,20 +386,40 @@ static int __init fb_it8951_init(void)
   }
 }
 
+dev_t base_dev = 0;
+
 static void __exit fb_it8951_exit(void)
 {
   /* Remember — we have to clean up after ourselves. Unregister the character device. */
-  unregister_chrdev(major_num, DEVICE_NAME);
-  printk(KERN_INFO "it8951usb module removed!\n");
-}
 
+  //unregister_chrdev(234, "it8951_");
+  //unregister_chrdev_region(base_dev, SG_MAX_DEVS);
+  scsi_unregister_interface(&sg_interface);
+
+  unregister_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS);
+  unregister_chrdev_region(MKDEV(511, 0), 1);
+  unregister_chrdev_region(MKDEV(234, 0), 1);
+  
+
+  printk(KERN_INFO "it8951usb module removed\n");
+}
 
 static int __init fb_it8951_init2(void)
 {
-    printk(KERN_INFO "it8951usb module loaded\n");
+  int rc;
 
+  //rc = alloc_chrdev_region(&base_dev, 0, SG_MAX_SEGMENTS, "it8951_");
+  rc = register_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS, "it8951_");
+  //major_num = MAJOR(base_dev);
 
-    return 0;
+  printk(KERN_INFO "Register char dev RC: %d\n", rc);
+
+  rc = scsi_register_interface(&sg_interface);
+
+  printk(KERN_INFO "Register SCSI interface RC: %d\n", rc);
+
+  printk(KERN_INFO "it8951usb module loaded\n");
+  return rc;
 }
 
 module_init(fb_it8951_init2);
