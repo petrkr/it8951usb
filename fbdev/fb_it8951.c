@@ -13,14 +13,12 @@
 // Chardev includes
 #include <linux/cdev.h>
 
-
 // SCSI includes
 #include <scsi/scsi.h>
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/sg.h>
-
 
 #define SG_MAX_DEVS 32768
 
@@ -53,6 +51,103 @@ static struct file_operations file_ops = {
     .open = device_open,
     .release = device_release};
 
+static DEFINE_IDR(sg_index_idr);
+static DEFINE_RWLOCK(sg_index_lock); /* Also used to lock
+							   file descriptor list for device */
+
+typedef struct sg_device
+{ /* holds the state of each scsi generic device */
+  struct scsi_device *device;
+  wait_queue_head_t open_wait; /* queue open() when O_EXCL present */
+  struct mutex open_rel_lock;  /* held when in open() or release() */
+  int sg_tablesize;            /* adapter's max scatter-gather table size */
+  u32 index;                   /* device index number */
+  struct list_head sfds;
+  rwlock_t sfd_lock;  /* protect access to sfd list */
+  atomic_t detaching; /* 0->device usable, 1->device detaching */
+  bool exclude;       /* 1->open(O_EXCL) succeeded and is active */
+  int open_cnt;       /* count of opens (perhaps < num(sfds) ) */
+  char sgdebug;       /* 0->off, 1->sense, 9->dump dev, 10-> all devs */
+  struct gendisk *disk;
+  struct cdev *cdev; /* char_dev [sysfs: /sys/cdev/major/sg<n>] */
+  struct kref d_ref;
+} Sg_device;
+
+
+static int sr_probe(struct device *);
+static int sr_remove(struct device *);
+static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt);
+static int sr_done(struct scsi_cmnd *);
+static int sr_runtime_suspend(struct device *dev);
+
+static struct scsi_driver sr_template = {
+	.gendrv = {
+		.name   	= "it8951_epaper",
+		.owner		= THIS_MODULE,
+		.probe		= sr_probe,
+    .probe_type	= PROBE_FORCE_SYNCHRONOUS,
+		.remove		= sr_remove,
+	},
+	.init_command		= sr_init_command,
+	.done			= sr_done,
+};
+
+static int sr_probe(struct device *dev)
+{
+  printk("IT8951 Probe");
+  struct scsi_device *sdev = to_scsi_device(dev);
+
+  printk("  DEV type: %d", sdev->type);
+  printk("  DEV Vendor: %s", sdev->vendor);
+  printk("  DEV Model: %s", sdev->model);
+  printk("  DEV ver: %s", sdev->rev);
+
+  if (sdev->type != TYPE_DISK) {
+    printk("  Not disk");
+    return -ENODEV;
+  }
+
+  if (strncmp(sdev->vendor, "Generic ", 8) != 0)
+  {
+    printk(KERN_ALERT "  SCSI Vendor does not match\n");
+    return -ENODEV;
+  }
+
+  if (strncmp(sdev->model, "Storage RamDisc ", 8) != 0)
+  {
+    printk(KERN_ALERT "  SCSI Product does not match\n");
+    return -ENODEV;
+  }
+
+  if (strncmp(sdev->rev, "1.00", 4) != 0)
+  {
+    printk(KERN_ALERT "  SCSI Productver does not match\n");
+    return -ENODEV;
+  }
+
+
+  printk("IT8951 Probe Done");
+
+  return 0;
+}
+
+static int sr_done(struct scsi_cmnd *SCpnt)
+{
+  printk("IT8951 done");
+  return 0;
+}
+
+static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt)
+{
+  printk("IT8951 init cmd");
+  return 0;
+}
+
+static int sr_remove(struct device *dev)
+{
+  printk("IT8951 remove");
+  return 0;
+}
 
 /* SCSI Generic */
 static int sg_add_device(struct device *, struct class_interface *);
@@ -64,19 +159,96 @@ static struct class_interface sg_interface = {
     .remove_dev = sg_remove_device,
 };
 
-static int
-sg_add_device(struct device *cl_dev, struct class_interface *cl_intf)
+
+static Sg_device *
+sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 {
- printk("Calling add device");
- return 0;
+  struct request_queue *q = scsidp->request_queue;
+  Sg_device *sdp;
+  unsigned long iflags;
+  int error;
+  u32 k;
+
+  sdp = kzalloc(sizeof(Sg_device), GFP_KERNEL);
+  if (!sdp)
+  {
+    sdev_printk(KERN_WARNING, scsidp, "%s: kmalloc Sg_device "
+                                      "failure\n",
+                __func__);
+    return ERR_PTR(-ENOMEM);
+  }
+
+  idr_preload(GFP_KERNEL);
+  write_lock_irqsave(&sg_index_lock, iflags);
+
+  error = idr_alloc(&sg_index_idr, sdp, 0, SG_MAX_DEVS, GFP_NOWAIT);
+  if (error < 0)
+  {
+    if (error == -ENOSPC)
+    {
+      sdev_printk(KERN_WARNING, scsidp,
+                  "Unable to attach sg device type=%d, minor number exceeds %d\n",
+                  scsidp->type, SG_MAX_DEVS - 1);
+      error = -ENODEV;
+    }
+    else
+    {
+      sdev_printk(KERN_WARNING, scsidp, "%s: idr "
+                                        "allocation Sg_device failure: %d\n",
+                  __func__, error);
+    }
+    goto out_unlock;
+  }
+  k = error;
+
+  sdev_printk(KERN_INFO, scsidp, "sg_alloc: dev=%d \n", k);
+  sprintf(disk->disk_name, "it8951usb%d", k);
+  disk->first_minor = k;
+  sdp->disk = disk;
+  sdp->device = scsidp;
+  mutex_init(&sdp->open_rel_lock);
+  INIT_LIST_HEAD(&sdp->sfds);
+  init_waitqueue_head(&sdp->open_wait);
+  atomic_set(&sdp->detaching, 0);
+  rwlock_init(&sdp->sfd_lock);
+  sdp->sg_tablesize = queue_max_segments(q);
+  sdp->index = k;
+  kref_init(&sdp->d_ref);
+  error = 0;
+
+out_unlock:
+  write_unlock_irqrestore(&sg_index_lock, iflags);
+  idr_preload_end();
+
+  if (error)
+  {
+    kfree(sdp);
+    return ERR_PTR(error);
+  }
+  return sdp;
 }
 
 
+static int
+sg_add_device(struct device *dev, struct class_interface *intf)
+{
+  printk("Calling add device");
+  struct scsi_device *scsidp = to_scsi_device(dev->parent);
+  struct gendisk *disk;
+  Sg_device *sdp = NULL;
+  int error;
+
+  printk("DEV Name %s Parent ID %s", dev->init_name, dev->parent->init_name);
+
+  return 0;
+}
+
 static void
-sg_remove_device(struct device *cl_dev, struct class_interface *cl_intf)
+sg_remove_device(struct device *dev, struct class_interface *intf)
 {
   printk("Calling remove device");
-  return 0;
+
+  struct scsi_device *scsidp = to_scsi_device(dev->parent);
 }
 
 /* When a process reads from our device, this gets called. */
@@ -156,29 +328,37 @@ static void __exit fb_it8951_exit(void)
 
   //unregister_chrdev(234, "it8951_");
   //unregister_chrdev_region(base_dev, SG_MAX_DEVS);
-  scsi_unregister_interface(&sg_interface);
+  //scsi_unregister_interface(&sg_interface);
+  //unregister_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS);
 
-  unregister_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS);
+  scsi_unregister_driver(&sr_template.gendrv);
+
+	//unregister_blkdev(51, "it8951usb");
 
   printk(KERN_INFO "it8951usb module removed\n");
 }
 
 static int __init fb_it8951_init2(void)
 {
-  int rc;
+  int rc = 0;
 
   printk(KERN_INFO "it8951usb module initializing...\n");
 
   //rc = alloc_chrdev_region(&base_dev, 0, SG_MAX_SEGMENTS, "it8951_");
-  rc = register_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS, "it8951_");
-
-  printk(KERN_INFO "  Register char dev RC: %d\n", rc);
-
-  rc = scsi_register_interface(&sg_interface);
-
-  printk(KERN_INFO "  Register SCSI interface RC: %d\n", rc);
+  //rc = register_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS, "it8951");
+  //printk(KERN_INFO "  Register char dev RC: %d\n", rc);
+  //rc = scsi_register_interface(&sg_interface);
+  //printk(KERN_INFO "  Register SCSI interface RC: %d\n", rc);
+	//rc = register_blkdev(51, "it8951usb");
+	//if (rc)
+	//	return rc;
+	rc = scsi_register_driver(&sr_template.gendrv);
+  printk(KERN_INFO "  Register SCSI driver RC: %d\n", rc);
+  //if (rc)
+	//	unregister_blkdev(51, "it8951usb");
 
   printk(KERN_INFO "it8951usb module loaded\n");
+
   return rc;
 }
 
