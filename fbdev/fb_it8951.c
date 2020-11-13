@@ -238,7 +238,10 @@ sg_add_device(struct device *dev, struct class_interface *intf)
   Sg_device *sdp = NULL;
   int error;
 
-  printk("DEV Name %s Parent ID %s", dev->init_name, dev->parent->init_name);
+  printk("  DEV type: %d", scsidp->type);
+  printk("  DEV Vendor: %s", scsidp->vendor);
+  printk("  DEV Model: %s", scsidp->model);
+  printk("  DEV ver: %s", scsidp->rev);
 
   return 0;
 }
@@ -347,7 +350,7 @@ static int __init fb_it8951_init2(void)
   //rc = alloc_chrdev_region(&base_dev, 0, SG_MAX_SEGMENTS, "it8951_");
   //rc = register_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS, "it8951");
   //printk(KERN_INFO "  Register char dev RC: %d\n", rc);
-  //rc = scsi_register_interface(&sg_interface);
+  rc = scsi_register_interface(&sg_interface);
   //printk(KERN_INFO "  Register SCSI interface RC: %d\n", rc);
 	//rc = register_blkdev(51, "it8951usb");
 	//if (rc)
