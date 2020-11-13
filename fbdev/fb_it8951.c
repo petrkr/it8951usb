@@ -331,10 +331,11 @@ static void __exit fb_it8951_exit(void)
 
   //unregister_chrdev(234, "it8951_");
   //unregister_chrdev_region(base_dev, SG_MAX_DEVS);
-  //scsi_unregister_interface(&sg_interface);
+  
   //unregister_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS);
 
   scsi_unregister_driver(&sr_template.gendrv);
+  scsi_unregister_interface(&sg_interface);
 
 	//unregister_blkdev(51, "it8951usb");
 
