@@ -261,7 +261,7 @@ update_region(const char *filename, int x, int y, int w, int h, int mode)
 	unsigned char *image = (unsigned char *) malloc(size);
 	if (clear == 1) {
 		printf("Filling buffer by dummy data (length %d)\n", size);
-		memset(image, 0x40, size);
+		memset(image, 0xFF, size);
 	} else {
 		size_t total_left = size;
 		unsigned char *buffer_pointer = image;
