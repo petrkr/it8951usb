@@ -94,58 +94,58 @@ static struct scsi_driver sr_template = {
 
 static int sr_probe(struct device *dev)
 {
-  printk("IT8951 Probe");
+  printk("SR: IT8951 Probe");
   struct scsi_device *sdev = to_scsi_device(dev);
 
-  printk("  DEV type: %d", sdev->type);
-  printk("  DEV Vendor: %s", sdev->vendor);
-  printk("  DEV Model: %s", sdev->model);
-  printk("  DEV ver: %s", sdev->rev);
+  printk("SR:   DEV type: %d", sdev->type);
+  printk("SR:   DEV Vendor: %s", sdev->vendor);
+  printk("SR:   DEV Model: %s", sdev->model);
+  printk("SR:   DEV ver: %s", sdev->rev);
 
   if (sdev->type != TYPE_DISK) {
-    printk("  Not disk");
+    printk("SR:   Not disk");
     return -ENODEV;
   }
 
   if (strncmp(sdev->vendor, "Generic ", 8) != 0)
   {
-    printk(KERN_ALERT "  SCSI Vendor does not match\n");
+    printk(KERN_ALERT "SR:   SCSI Vendor does not match\n");
     return -ENODEV;
   }
 
   if (strncmp(sdev->model, "Storage RamDisc ", 8) != 0)
   {
-    printk(KERN_ALERT "  SCSI Product does not match\n");
+    printk(KERN_ALERT "SR:   SCSI Product does not match\n");
     return -ENODEV;
   }
 
   if (strncmp(sdev->rev, "1.00", 4) != 0)
   {
-    printk(KERN_ALERT "  SCSI Productver does not match\n");
+    printk(KERN_ALERT "SR:   SCSI Productver does not match\n");
     return -ENODEV;
   }
 
 
-  printk("IT8951 Probe Done");
+  printk("SR: IT8951 Probe Done");
 
   return 0;
 }
 
 static int sr_done(struct scsi_cmnd *SCpnt)
 {
-  printk("IT8951 done");
+  printk("SR: IT8951 done");
   return 0;
 }
 
 static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt)
 {
-  printk("IT8951 init cmd");
+  printk("SR: IT8951 init cmd");
   return 0;
 }
 
 static int sr_remove(struct device *dev)
 {
-  printk("IT8951 remove");
+  printk("SR: IT8951 remove");
   return 0;
 }
 
@@ -232,16 +232,16 @@ out_unlock:
 static int
 sg_add_device(struct device *dev, struct class_interface *intf)
 {
-  printk("Calling add device");
+  printk("SG ADD: Calling add device");
   struct scsi_device *scsidp = to_scsi_device(dev->parent);
   struct gendisk *disk;
   Sg_device *sdp = NULL;
   int error;
 
-  printk("  DEV type: %d", scsidp->type);
-  printk("  DEV Vendor: %s", scsidp->vendor);
-  printk("  DEV Model: %s", scsidp->model);
-  printk("  DEV ver: %s", scsidp->rev);
+  printk("SG ADD:  DEV type: %d", scsidp->type);
+  printk("SG ADD:  DEV Vendor: %s", scsidp->vendor);
+  printk("SG ADD:  DEV Model: %s", scsidp->model);
+  printk("SG ADD:  DEV ver: %s", scsidp->rev);
 
   return 0;
 }
@@ -249,7 +249,7 @@ sg_add_device(struct device *dev, struct class_interface *intf)
 static void
 sg_remove_device(struct device *dev, struct class_interface *intf)
 {
-  printk("Calling remove device");
+  printk("SG REMOVE: Calling remove device");
 
   struct scsi_device *scsidp = to_scsi_device(dev->parent);
 }
@@ -339,29 +339,31 @@ static void __exit fb_it8951_exit(void)
 
 	//unregister_blkdev(51, "it8951usb");
 
-  printk(KERN_INFO "it8951usb module removed\n");
+  printk(KERN_INFO "EXIT: it8951usb module removed\n");
 }
 
 static int __init fb_it8951_init2(void)
 {
   int rc = 0;
 
-  printk(KERN_INFO "it8951usb module initializing...\n");
+  printk(KERN_INFO "INIT: it8951usb module initializing...\n");
 
   //rc = alloc_chrdev_region(&base_dev, 0, SG_MAX_SEGMENTS, "it8951_");
   //rc = register_chrdev_region(MKDEV(51, 0), SG_MAX_DEVS, "it8951");
   //printk(KERN_INFO "  Register char dev RC: %d\n", rc);
+
   rc = scsi_register_interface(&sg_interface);
+
   //printk(KERN_INFO "  Register SCSI interface RC: %d\n", rc);
 	//rc = register_blkdev(51, "it8951usb");
 	//if (rc)
 	//	return rc;
 	rc = scsi_register_driver(&sr_template.gendrv);
-  printk(KERN_INFO "  Register SCSI driver RC: %d\n", rc);
+  printk(KERN_INFO "INIT:  Register SCSI driver RC: %d\n", rc);
   //if (rc)
 	//	unregister_blkdev(51, "it8951usb");
 
-  printk(KERN_INFO "it8951usb module loaded\n");
+  printk(KERN_INFO "INIT: it8951usb module loaded\n");
 
   return rc;
 }
