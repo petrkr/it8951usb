@@ -353,8 +353,8 @@ static int __init fb_it8951_init2(void)
   //printk(KERN_INFO "  Register char dev RC: %d\n", rc);
 
   rc = scsi_register_interface(&sg_interface);
+  printk(KERN_INFO "INIT:  Register SCSI interface RC: %d\n", rc);
 
-  //printk(KERN_INFO "  Register SCSI interface RC: %d\n", rc);
 	//rc = register_blkdev(51, "it8951usb");
 	//if (rc)
 	//	return rc;
