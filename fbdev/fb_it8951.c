@@ -134,16 +134,15 @@ static int sdrv_remove(struct device *dev)
   return 0;
 }
 
+
 /* SCSI Generic */
 static int sint_add_device(struct device *, struct class_interface *);
 static void sint_remove_device(struct device *, struct class_interface *);
-
 
 static struct class_interface sint_interface = {
     .add_dev = sint_add_device,
     .remove_dev = sint_remove_device,
 };
-
 
 static Sg_device *
 sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
@@ -213,12 +212,12 @@ out_unlock:
   return sdp;
 }
 
-
 static int
 sint_add_device(struct device *dev, struct class_interface *intf)
 {
   printk("SG ADD: Calling add device");
   struct scsi_device *sdev = to_scsi_device(dev->parent);
+  struct gendisk *disk;
   int error;
 
   printk("SG ADD:  DEV type: %d", sdev->type);
@@ -262,6 +261,8 @@ sint_remove_device(struct device *dev, struct class_interface *intf)
   struct scsi_device *scsidp = to_scsi_device(dev->parent);
 }
 
+
+/* Char DEV functions */
 /* When a process reads from our device, this gets called. */
 static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *offset)
 {
