@@ -1,0 +1,103 @@
+Disable FW Code Select Mode.                                         
+FSC=0x00000010 OPT=0x00000001 FSI=0x00000001 RSI=0x00000000                                                         
+Firmware info:                                                                                                      
+ offset=0x00000400 size=0x0001FE00 addr=0x00000000                                                                  
+Reg setting info:                                                                                                   
+ offset=0x00000200 size=0x00000200 addr=0x00000000                                                                  
+Start registers setting                                                                                             
+write 0x00500000 to 0x18000000 wait 0x00000000                                                                      
+write 0x00020002 to 0x18000038 wait 0x00000000                                                                      
+write 0x00000401 to 0x18000034 wait 0x00000000                                                                      
+write 0x00010001 to 0x1800001C wait 0x00010000                                                                      
+write 0x22208032 to 0x18000020 wait 0x00000000                                                                      
+write 0x00422A33 to 0x18000400 wait 0x00000000                                                                      
+write 0x0048030D to 0x18000404 wait 0x00000000                                                                      
+write 0x00000010 to 0x18000408 wait 0x00000100                                                                      
+write 0x00000008 to 0x18000408 wait 0x00000100                                                                      
+write 0x00000004 to 0x18000408 wait 0x00000100                                                                      
+write 0x10002022 to 0x1800040C wait 0x00000000                                                                      
+write 0x00000000 to 0x18000434 wait 0x00000000                                                                      
+Loading firmware...                                                                                                 
+FSI: Offset=0x00000400 size=0x0001FE00 addr=0x00000000                                                              
+Seg 0x00000002: Offset=0x0003D740 size=0x0001D5F0 addr=0x00000000                                                   
+Seg 0x00000003: Offset=0x0003D7F0 size=0x00000230 addr=0x00000000                                                   
+Seg 0x00000004: Offset=0x0003E550 size=0x00000BD0 addr=0x00000000                                                   
+Seg 0x00000005: Offset=0x0003EE40 size=0x000008F0 addr=0x00000000                                                   
+Seg 0x00000006: Offset=0x00000000 size=0x00000000 addr=0x00000000                                                   
+Seg 0x00000007: Offset=0x0003EEE0 size=0x00000080 addr=0x00000000                                                   
+Seg 0x00000008: Offset=0x0003EF60 size=0x00000038 addr=0x00000000                                                   
+Seg 0x00000009: Offset=0x0003EF98 size=0x00000090 addr=0x00000000                                                   
+Seg 0x0000000A: Offset=0x0003F028 size=0x00000020 addr=0x00000000                                                   
+Seg 0x0000000B: Offset=0x0003F048 size=0x00017700 addr=0x00000000                                                   
+Seg 0x0000000C: Offset=0x00056748 size=0x00000004 addr=0x00000000                                                   
+Seg 0x0000000D: Offset=0x0005674C size=0x00000004 addr=0x00000000                                                   
+Seg 0x0000000E: Offset=0x00056750 size=0x00000014 addr=0x00000000                                                   
+Seg 0x0000000F: Offset=0x00056764 size=0x00000004 addr=0x00000000                                                   
+finish!!                                                                                                            
+Launch Application...                                                                                               
+
+GPIO_0 State:0x00000000.                                                                                            
+-->SCCR: 0x22208032.                                                                                                
+--------------------------------------------                                                                        
+--------------------------------------------                                                                        
+
+DISPALY Test Code 2.0-- (Aug 28 2014:13:34:24)(00000001)                                                            
+Offset B = 00000000.                                                                                                
+Offset C = 08000000.                                                                                                
+0 GPIO0:0 GPIO1:0                                                                                                   
+USB_DEVICE_Buf_init                                                                                                 
+sdk_malloc:: 20000.                                                                                                 
+sdk_malloc:: 20000.                                                                                                 
+sdk_malloc:: 10000.                                                                                                 
+sdk_malloc:: 4460.                                                                                                  
+sdk_malloc:: 4460.                                                                                                  
+sdk_malloc:: 40000.                                                                                                 
+sdk_malloc:: 80.                                                                                                    
+Others SFI => Enable DMA Mode                                                                                       
+
+Load Temperature Table ... Pass                                                                                     
+Inital display engine's parameter.                                                                                  
+Image Size = BD800                                                                                                  
+sdk_malloc:: BD800.                                                                                                 
+sdk_malloc:: BD800.                                                                                                 
+Init Update Buffer = D8068                                                                                          
+Init Image  Buffer = 195870                                                                                         
+
+Start Temperature: 29, Change Table to Segment 3 !!                                                                 
+Panel(W,H) = (1024,758)                                                                                             
+  Keypad Init.                                                                                                      
+INT0 MASK=000003FF, STATUS=00000000.                                                                                
+INT1 MASK=0000FFFF, STATUS=00000000.                                                                                
+Device I80 Enable!!                                                                                                 
+CGR Setting: 3063                                                                                                   
+sdk_malloc:: 20000.                                                                                                 
+pmic_init : GPIO1_DIRECTION = DE                                                                                    
+V2                                                                                                                  
+ite_dispatch_func_test.                                                                                             
+
+
+Function Test Menu:
+  Input select test item.
+  0.MemoryDump.
+  1.RW Reg/Mem Test.
+  2.Example of ITE TCON Display
+  3.ite_show_logo_api
+  4.pmic_test
+  5.ite_dc_dc_en_test
+  6.ite_clear_all_white
+  7.i2c_thermal_test
+  8.ite_power_seq_test
+  9.sfi_store_img_test
+  A.ite_set_draw_line_mode
+  B.i2c_slave_test
+  C.i2c_master_test
+  D.ite_force_set_temperature and set segment
+  E.r_touch_test
+  F.e4_test_main_loop
+  10.ite_set_e4_R_Vol
+  11.e4_test2_main_loop
+  12.e4_test_main_loop
+  13.ite_local_mem_test
+  14.Exit.
+1Check Reg 0x18001228 = 0
+Please input 0~9 , A~F or a~f (max byte 1): 0x
